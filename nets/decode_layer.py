@@ -1,17 +1,14 @@
 import tensorflow as tf
 
-from configuration import CONFIDENCE_THRESHOLD, NMS_IOU_THRESHOLD, MAP_SIZE
+from configuration import CONFIDENCE_THRESHOLD, NMS_IOU_THRESHOLD, MAP_SIZE, MAX_BOXES_PER_IMAGE
 from nets.anchor_layer import Anchor
 
 
 class DecodeLayer(tf.keras.layers.Layer):
-    def __init__(self):
+    def __init__(self, anchor=None):
         super(DecodeLayer, self).__init__()
-        self.map_size = tf.constant(MAP_SIZE)
-        self.anchor = Anchor()
-        self.default_boxes = self.anchor(self.map_size)
-    
-    
+        self.default_boxes = anchor
+
     @tf.function
     def get_offset(self, predict_loc, box_pred):
         # 计算边框的中心点与宽高
@@ -32,6 +29,7 @@ class DecodeLayer(tf.keras.layers.Layer):
         detection_boxes = []
         detection_classes = []
         detection_scores = []
+        detection_num = []
         for logit in logits:
             predict_cls = logit[..., 4:]
             predict_loc = logit[..., :4]
@@ -45,16 +43,14 @@ class DecodeLayer(tf.keras.layers.Layer):
             box = tf.boolean_mask(predict_loc, mask=mask, axis=0)
             cls = tf.boolean_mask(classes, mask=mask, axis=0)
             score = tf.boolean_mask(scores, mask=mask, axis=0)
-            selected_indices = tf.image.non_max_suppression(box, score, max_output_size=5,
+            selected_indices = tf.image.non_max_suppression(box, score, max_output_size=MAX_BOXES_PER_IMAGE,
                                                             iou_threshold=NMS_IOU_THRESHOLD,
                                                             score_threshold=CONFIDENCE_THRESHOLD)
             # print("selected_indices:", selected_indices)
             detection_boxes.append(tf.gather(box, selected_indices))
-            detection_classes.append(
-                tf.cast(tf.expand_dims(tf.gather(cls, selected_indices), axis=-1),
-                        dtype=tf.float32))
-            detection_scores.append(
-                tf.expand_dims(tf.gather(score, selected_indices), axis=-1))
+            detection_classes.append(tf.gather(cls, selected_indices))
+            detection_scores.append(tf.gather(score, selected_indices))
+            detection_num.append(len(selected_indices))
         result = {"detection_boxes": detection_boxes, "detection_classes": detection_classes,
-                  "detection_scores": detection_scores}
+                  "detection_scores": detection_scores, "detection_num": detection_num}
         return result

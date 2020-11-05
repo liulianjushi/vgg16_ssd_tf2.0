@@ -12,7 +12,7 @@ import tensorflow as tf
 #     except RuntimeError as e:
 #         # 异常处理
 #         print(e)
-from configuration import NMS_IOU_THRESHOLD, CONFIDENCE_THRESHOLD
+from configuration import NMS_IOU_THRESHOLD, CONFIDENCE_THRESHOLD, MAP_SIZE
 from nets.anchor_layer import Anchor
 from nets.decode_layer import DecodeLayer
 from nets.input_layer import InputLayer
@@ -106,7 +106,8 @@ class SsdLayer(tf.keras.Model):
         self.predict_loc_reshape_6 = tf.keras.layers.Reshape([1 * 1 * 4, 4])
         self.predict_cls_6 = tf.keras.layers.Conv2D(4 * self.num_classes, 3, padding="same", name="predict_cls_6")
         self.predict_cls_reshape_6 = tf.keras.layers.Reshape([1 * 1 * 4, self.num_classes])
-        self.decode_layer = DecodeLayer()
+        self.anchor = Anchor()
+        self.decode_layer = DecodeLayer(self.anchor(MAP_SIZE))
 
     def call(self, inputs, training=False, **kwargs):
         x = self.conv1_1(inputs)

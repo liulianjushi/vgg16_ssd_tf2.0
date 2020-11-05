@@ -9,7 +9,7 @@ class VOCDataSet(object):
         self.max_boxes_per_image = max_boxes_per_image
         self.epoch = epoch
         self.batch_size = batch_size
-    
+
     def __len__(self):
         return len(list(self.dataset.as_numpy_iterator()))
 
@@ -51,8 +51,8 @@ class VOCDataSet(object):
 
     def load_data(self):
         dataset = self.dataset.cache() \
-            .shuffle(buffer_size=len(list(self.dataset.as_numpy_iterator()))) \
             .map(self.decode_and_resize, num_parallel_calls=tf.data.experimental.AUTOTUNE) \
+            .shuffle(buffer_size=len(list(self.dataset.as_numpy_iterator()))) \
             .batch(self.batch_size) \
             .prefetch(buffer_size=tf.data.experimental.AUTOTUNE) \
             .repeat(self.epoch)

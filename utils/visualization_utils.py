@@ -99,15 +99,17 @@ def plot_to_image(images, labels, pre_labels=None):
         if pre_labels is not None:
             img = tf.concat([img, img], 1)
             img_pil = Image.fromarray(img.numpy())
-            predict_boxes = tf.cast(
-                pre_labels["detection_boxes"][index] * [width, height, width, height] + [width, 0, width, 0], tf.int32)
-            detection_classes = tf.cast(pre_labels["detection_classes"][index], tf.int32)
-            detection_scores = pre_labels["detection_scores"]
-            for i, box in enumerate(predict_boxes):
-                draw_bounding_box_on_image(img_pil, box[1], box[0], box[3], box[2],
-                                           color=SELECTED_COLORS[detection_classes[i][0]],
-                                           thickness=4,
-                                           display_str=f"{OBJECT_CLASSES[detection_classes[i][0]]}:{round(100 * detection_scores[i][0])}%")
+            predict_boxes = pre_labels["detection_boxes"][index]
+            detection_classes = pre_labels["detection_classes"][index]
+            detection_scores = pre_labels["detection_scores"][index]
+            detection_num = pre_labels["detection_num"][index]
+            if detection_num != 0:
+                for i, box in enumerate(predict_boxes):
+                    box = tf.cast(box * [width, height, width, height] + [width, 0, width, 0], tf.int32)
+                    draw_bounding_box_on_image(img_pil, box[1], box[0], box[3], box[2],
+                                               color=SELECTED_COLORS[detection_classes[i] - 1],
+                                               thickness=4,
+                                               display_str=f"{OBJECT_CLASSES[detection_classes[i] - 1]}:{tf.round(100 * detection_scores[i])}%")
         else:
             img_pil = Image.fromarray(img.numpy())
         mask = tf.not_equal(label[..., -1], 0)

@@ -17,21 +17,24 @@ class Anchor(tf.keras.layers.Layer):
         feature_map_boxes = []
         for i, size in enumerate(inputs):
             y, x = tf.meshgrid(tf.range(size[0]), tf.range(size[1]))
-            y = (tf.cast(y, dtype=tf.float32) + self.offset) * self.anchor_steps[i] / self.image_height
-            x = (tf.cast(x, dtype=tf.float32) + self.offset) * self.anchor_steps[i] / self.image_width
+            y = (tf.cast(y, dtype=tf.float32) + self.offset) * self.anchor_steps[i]
+            x = (tf.cast(x, dtype=tf.float32) + self.offset) * self.anchor_steps[i]
 
             w = tf.concat(([self.anchor_sizes[i][0], tf.sqrt(self.anchor_sizes[i][0] * self.anchor_sizes[i][1])],
-                           self.anchor_sizes[i][0] * tf.sqrt(self.aspect_ratios[i][1:])), axis=0) / self.image_width
+                           self.anchor_sizes[i][0] * tf.sqrt(self.aspect_ratios[i][1:])), axis=0)
 
             h = tf.concat(([self.anchor_sizes[i][0], tf.sqrt(self.anchor_sizes[i][0] * self.anchor_sizes[i][1])],
-                           self.anchor_sizes[i][0] / tf.sqrt(self.aspect_ratios[i][1:])), axis=0) / self.image_height
+                           self.anchor_sizes[i][0] / tf.sqrt(self.aspect_ratios[i][1:])), axis=0)
 
             wh = tf.stack((w, h), axis=1)
             center_xy = tf.stack((x, y), axis=2)
-            xywh_list = [tf.concat([tf.tile(tf.reshape(xy, (1, -1)), [wh.shape[0], 1]), wh], axis=1) for xy in tf.reshape(center_xy, (-1, 2))]
-            default_boxes = tf.concat([[[xywh[0] - xywh[2] / 2, xywh[1] - xywh[3] / 2, xywh[0] + xywh[2] / 2, xywh[1] + xywh[3] / 2]] for xywhs in xywh_list for xywh in xywhs], axis=0)
+            xywh_list = [tf.concat([tf.tile(tf.reshape(xy, (1, -1)), [wh.shape[0], 1]), wh], axis=1) for xy in
+                         tf.reshape(center_xy, (-1, 2))]
+            default_boxes = tf.concat(
+                [[[xywh[0] - xywh[2] / 2, xywh[1] - xywh[3] / 2, xywh[0] + xywh[2] / 2, xywh[1] + xywh[3] / 2]] for
+                 xywhs in xywh_list for xywh in xywhs], axis=0)
 
-            # 归一化，并处理超出连累的边框
+            # 归一化，并处理超出边界的边框
             default_boxes = tf.clip_by_value(
                 default_boxes / [self.image_width, self.image_height, self.image_width, self.image_height], 0.0, 1.0)
 

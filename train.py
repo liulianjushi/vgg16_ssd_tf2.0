@@ -4,7 +4,8 @@ import time
 import numpy as np
 import tensorflow as tf
 
-from configuration import NUM_CLASSES, IMAGE_HEIGHT, IMAGE_WIDTH, CHANNELS, EPOCHS, BATCH_SIZE
+from configuration import NUM_CLASSES, IMAGE_HEIGHT, IMAGE_WIDTH, CHANNELS, EPOCHS, BATCH_SIZE, MAP_SIZE
+from nets.anchor_layer import Anchor
 from nets.decode_layer import DecodeLayer
 from nets.encode_layer import EncodeLayer
 from nets.loss_layer import SSDLoss
@@ -33,8 +34,8 @@ print(ssd.summary())
 loss = SSDLoss()
 
 # optimizer
-lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-3,
-                                                             decay_steps=20000,
+lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=1e-2,
+                                                             decay_steps=5000,
                                                              decay_rate=0.96)
 optimizer = tf.optimizers.Adam(learning_rate=lr_schedule)
 
@@ -47,19 +48,19 @@ valid_loss_metric = tf.metrics.Mean()
 valid_cls_loss_metric = tf.metrics.Mean()
 valid_reg_loss_metric = tf.metrics.Mean()
 
-
 print("loading dataset...")
 
-
-train_dataset = dataset.VOCDataSet("data/train.record", batch_size=BATCH_SIZE, epoch=EPOCHS).load_data()
+train_dataset = dataset.VOCDataSet("data/val.record", batch_size=BATCH_SIZE, epoch=EPOCHS).load_data()
 num = len(list(train_dataset.as_numpy_iterator()))
 print(f"train dataset num:{num}")
 val_dataset = dataset.VOCDataSet("data/val.record", batch_size=4, epoch=1).load_data()
 print("finish loading dataset.")
 
-
-encode_layer = EncodeLayer()
-decode_layer = DecodeLayer()
+anchor = Anchor()
+anchor_boxes = anchor(MAP_SIZE)
+encode_layer = EncodeLayer(anchor_boxes)
+decode_layer = DecodeLayer(anchor_boxes)
+print("start training...")
 
 ckpt = tf.train.Checkpoint(step=tf.Variable(0), optimizer=optimizer, net=ssd)
 manager = tf.train.CheckpointManager(ckpt, directory='./models', checkpoint_name='model.ckpt', max_to_keep=10)
@@ -87,7 +88,7 @@ def train_step(batch_images, batch_labels):
 
 @tf.function
 def valid_step(batch_images, batch_labels):
-    logit = ssd(batch_images,training=True)
+    logit = ssd(batch_images, training=True)
     loss_value, cls_loss, reg_loss = loss(y_true=batch_labels, y_pred=logit)
     valid_loss_metric.update_state(values=loss_value)
     valid_cls_loss_metric.update_state(values=cls_loss)
@@ -104,30 +105,34 @@ else:
 for index, (images, labels) in enumerate(train_dataset):
     batch_labels = encode_layer(labels)
     logit = train_step(images["raw"], batch_labels)
+    output = decode_layer(logit)
     ckpt.step.assign_add(1)
-    if int(ckpt.step) % 500 == 0:
-        save_path = manager.save(checkpoint_number=ckpt.save_counter)
+    if int(ckpt.step) % 5 == 0:
+        save_path = manager.save(checkpoint_number=ckpt.step)
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
-        for i, (images, labels) in enumerate(val_dataset):
-            batch_labels = encode_layer(labels)
-            logit = valid_step(images["raw"], batch_labels)
-            output = decode_layer(logit)
-            with valid_summary_writer.as_default():  # 指定记录器
-                tf.summary.scalar("valid_loss_metric", valid_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
-                tf.summary.scalar("valid_cls_loss_metric", valid_cls_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
-                tf.summary.scalar("valid_reg_loss_metric", valid_reg_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
-                tf.summary.image("10 valid data examples", plot_to_image(images, labels),
-                                 max_outputs=10, step=index)
-        print(
-            f"step:{index}/{num},valid_loss_metric:{loss_metric.result()},valid_cls_loss_metric:{valid_cls_loss_metric.result()},valid_reg_loss_metric:{valid_reg_loss_metric.result()}")
-        valid_loss_metric.reset_states()
-        valid_cls_loss_metric.reset_states()
-        valid_reg_loss_metric.reset_states()
-
+        # for i, (images, labels) in enumerate(val_dataset):
+        #     batch_labels = encode_layer(labels)
+        #     logit = valid_step(images["raw"], batch_labels)
+        #     output = decode_layer(logit)
+        #     with valid_summary_writer.as_default():  # 指定记录器
+        #         tf.summary.scalar("valid/valid_loss_metric", valid_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
+        #         tf.summary.scalar("valid/valid_cls_loss_metric", valid_cls_loss_metric.result(),
+        #                           step=index)  # 将当前损失函数的值写入记录器
+        #         tf.summary.scalar("valid/valid_reg_loss_metric", valid_reg_loss_metric.result(),
+        #                           step=index)  # 将当前损失函数的值写入记录器
+        #         tf.summary.image("valid/10 valid data examples", plot_to_image(images, labels), max_outputs=10,
+        #                          step=index)
+        # print(
+        #     f"step:{index}/{num},valid_loss_metric:{loss_metric.result()},valid_cls_loss_metric:{valid_cls_loss_metric.result()},valid_reg_loss_metric:{valid_reg_loss_metric.result()}")
+        # valid_loss_metric.reset_states()
+        # valid_cls_loss_metric.reset_states()
+        # valid_reg_loss_metric.reset_states()
     with train_summary_writer.as_default():  # 指定记录器
-        tf.summary.scalar("loss_metric", loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
-        tf.summary.scalar("cls_loss_metric", cls_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
-        tf.summary.scalar("reg_loss_metric", reg_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
+        tf.summary.scalar("train/loss_metric", loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
+        tf.summary.scalar("train/cls_loss_metric", cls_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
+        tf.summary.scalar("train/reg_loss_metric", reg_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
+        tf.summary.image("train/10 train data examples", plot_to_image(images, labels, output), max_outputs=10,
+                         step=index)
     print(
         f"step: {index}/{num},loss_metric:{loss_metric.result()},cls_loss_metric:{cls_loss_metric.result()},reg_loss_metric:{reg_loss_metric.result()}")
     loss_metric.reset_states()

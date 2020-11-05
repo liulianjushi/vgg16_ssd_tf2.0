@@ -50,6 +50,6 @@ class SSDLoss(object):
         # true_coord = tf.boolean_mask(y_true[..., :4], mask, axis=0)
         # pred_coord = tf.boolean_mask(y_pred[..., :4], mask, axis=0)
         reg_loss_value = tf.math.reduce_sum(
-            self.smooth_l1_loss(y_true=y_true[..., :4], y_pred=y_pred[..., :4]))
+            self.smooth_l1_loss(y_true=y_true[..., :4], y_pred=y_pred[..., :4])*cover_boxes)
         loss = self.cls_loss_weight * class_loss_value + self.reg_loss_weight * reg_loss_value
         return loss, class_loss_value, reg_loss_value
