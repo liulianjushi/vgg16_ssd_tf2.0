@@ -13,7 +13,7 @@ class SSDLoss(object):
 
     @staticmethod
     def sigmoid_focal_loss(y_true, y_pred, alpha, gamma):
-        ce = tf.keras.backend.binary_crossentropy(target=y_true, output=y_pred, from_logits=True)
+        ce = tf.keras.backend.binary_crossentropy(target=y_true, output=y_pred)
         pred_prob = tf.math.sigmoid(y_pred)
         p_t = (y_true * pred_prob) + ((1 - y_true) * (1 - pred_prob))
         alpha_factor = y_true * alpha + (1 - y_true) * (1 - alpha)

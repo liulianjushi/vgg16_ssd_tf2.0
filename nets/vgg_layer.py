@@ -215,10 +215,14 @@ class SsdLayer(tf.keras.Model):
         predict_cls = tf.concat(
             [predict_cls_1, predict_cls_2, predict_cls_3, predict_cls_4, predict_cls_5, predict_cls_6], 1)
         predict_cls = tf.reshape(predict_cls, (-1, 8732, self.num_classes))
-        # predict_cls = tf.nn.softmax(predict_cls)
+        predict_cls = tf.nn.softmax(predict_cls)
+
+
         predict_loc = tf.concat(
             [predict_loc_1, predict_loc_2, predict_loc_3, predict_loc_4, predict_loc_5, predict_loc_6], 1)
         predict_loc = tf.reshape(predict_loc, (-1, 8732, 4))
+
+        # (-1,8732,25)
         logit = tf.concat([predict_loc, predict_cls], 2)
 
         # ############# 解码 #####################

@@ -10,16 +10,19 @@ class DecodeLayer(tf.keras.layers.Layer):
 
     @tf.function
     def get_offset(self, predict_loc, box_pred):
-        # 计算边框的中心点与宽高
+        # 计算边框的中心点与宽高 (x,y,w,h)
         box_pred = tf.stack([(box_pred[..., 2] + box_pred[..., 0]) / 2, (box_pred[..., 3] + box_pred[..., 1]) / 2,
                              box_pred[..., 2] - box_pred[..., 0], box_pred[..., 3] - box_pred[..., 1]], 1)
 
         predict_loc = predict_loc * tf.concat(
             [box_pred[..., 2:4], tf.ones_like(box_pred[..., 2:4])], axis=-1)
+
         predict_loc = predict_loc + tf.concat(
             [box_pred[..., 0:2], tf.zeros_like(box_pred[..., 2:4])], axis=-1)
+
         boxes = tf.concat(
             [predict_loc[..., 0:2], tf.math.exp(predict_loc[..., 2:4]) * box_pred[..., 2:4]], axis=-1)
+
 
         boxes = tf.concat([boxes[..., 0:2] - boxes[..., 2:4] / 2, boxes[..., 0:2] + boxes[..., 2:4] / 2], axis=-1)
         return tf.clip_by_value(boxes, 0.0, 1.0)
@@ -34,9 +37,9 @@ class DecodeLayer(tf.keras.layers.Layer):
             predict_loc = logit[..., :4]
             predict_loc = self.get_offset(predict_loc, self.default_boxes)
 
-            predict_cls = tf.nn.softmax(predict_cls, axis=-1)
-            scores = tf.reduce_max(predict_cls, axis=-1)
             classes = tf.argmax(predict_cls, axis=-1)
+            scores = tf.reduce_max(predict_cls, axis=-1)
+
             mask = tf.not_equal(classes, 0)
             # print("mask:", mask)
             box = tf.boolean_mask(predict_loc, mask=mask, axis=0)
