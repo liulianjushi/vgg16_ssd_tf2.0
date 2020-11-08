@@ -73,10 +73,3 @@ class InputLayer(object):
         dataset = dataset.repeat(self.epoch)
         dataset = dataset.batch(self.batch_size)
         return dataset
-
-
-if __name__ == '__main__':
-    input = InputLayer()
-    dataset = input("/Users/james/IdeaProjects/vgg16_ssd_tf2.0/data/val.record")
-    for label in dataset:
-        print(label)

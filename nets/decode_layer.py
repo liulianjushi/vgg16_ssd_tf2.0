@@ -1,7 +1,6 @@
 import tensorflow as tf
 
-from configuration import CONFIDENCE_THRESHOLD, NMS_IOU_THRESHOLD, MAP_SIZE, MAX_BOXES_PER_IMAGE
-from nets.anchor_layer import Anchor
+from configuration import CONFIDENCE_THRESHOLD, NMS_IOU_THRESHOLD, MAX_BOXES_PER_IMAGE
 
 
 class DecodeLayer(tf.keras.layers.Layer):

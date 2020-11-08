@@ -1,4 +1,5 @@
 import io
+import itertools
 import random
 
 import matplotlib.pyplot as plt
@@ -73,15 +74,57 @@ def draw_bounding_box_on_image(image, ymin, xmin, ymax, xmax, color='red', thick
 
 def display_image(images, labels):
     imgs = []
-    for index, (img, height, width, label) in enumerate(zip(images["raw"], images["height"], images["width"], labels)):
-        mask = tf.not_equal(label[..., -1], 0)
-        boxes = tf.boolean_mask(label[..., :4], mask=mask, axis=0)
-        boxes = tf.concat([boxes[..., 0:2] - boxes[..., 2:4] / 2, boxes[..., 0:2] + boxes[..., 2:4] / 2], axis=-1)
+    for index, (img, height, width) in enumerate(zip(images["raw"], images["height"], images["width"])):
+        # mask = tf.not_equal(label[..., -1], 0)
+        # boxes = tf.boolean_mask(label[..., :4], mask=mask, axis=0)
+        boxes = labels[8692:8728]
+        # boxes = tf.concat([boxes[..., 0:2] - boxes[..., 2:4] / 2, boxes[..., 0:2] + boxes[..., 2:4] / 2], axis=-1)
         boxes = tf.gather(boxes, [1, 0, 3, 2], axis=1)
         img = tf.expand_dims(img + 0.5, 0)
         colors = np.array([[1.0, 0.0, 0.0]])
         img = tf.image.draw_bounding_boxes(img, tf.expand_dims(boxes, 0), colors)
         imgs.append(tf.squeeze(img, axis=0))
+    return imgs
+
+
+def plot_ious_matrix(ious):
+    """
+    Returns a matplotlib figure containing the plotted confusion matrix.
+
+    Args:
+      cm (array, shape = [n, n]): a confusion matrix of integer classes
+      class_names (array, shape = [n]): String names of the integer classes
+    """
+    imgs = []
+    for iou in ious:
+        iou= iou.numpy()
+        figure = plt.figure()
+        plt.imshow(iou, interpolation='nearest', cmap=plt.cm.Blues)
+        plt.title("Confusion matrix")
+        plt.colorbar()
+        plt.xticks(range(iou.shape[0]))
+        plt.yticks(range(iou.shape[1]))
+
+        # # Compute the labels from the normalized confusion matrix.
+        # labels = np.around(iou.astype('float32') / iou.sum(axis=1)[:, np.newaxis], decimals=2)
+        #
+        # # Use white text if squares are dark; otherwise black.
+        # threshold = np.max(iou) / 2.
+        # for i, j in itertools.product(range(iou.shape[0]), range(iou.shape[1])):
+        #     color = "white" if iou[i, j] > threshold else "black"
+        #     plt.text(j, i, labels[i, j], horizontalalignment="center", color=color)
+        # plt.tight_layout()
+        # plt.ylabel('True label')
+        # plt.xlabel('Predicted label')
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        plt.close(figure)
+        buf.seek(0)
+        # Convert PNG buffer to TF image
+        image = tf.image.decode_png(buf.getvalue(), channels=4)
+        # Add the batch dimension
+        imgs.append(image)
+
     return imgs
 
 
