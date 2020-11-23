@@ -102,9 +102,9 @@ else:
 for index, (images, labels) in enumerate(train_dataset):
     batch_labels, ious = encode_layer(labels)
     logit = train_step(images["raw"], batch_labels)
-    output = decode_layer(logit)
+    # output = decode_layer(logit)
     ckpt.step.assign_add(1)
-    if int(ckpt.step) % 5 == 0:
+    if int(ckpt.step) % 50 == 0:
         save_path = manager.save(checkpoint_number=ckpt.step)
         print("Saved checkpoint for step {}: {}".format(int(ckpt.step), save_path))
         # for i, (images, labels) in enumerate(val_dataset):
@@ -128,7 +128,7 @@ for index, (images, labels) in enumerate(train_dataset):
         tf.summary.scalar("train/loss_metric", loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
         tf.summary.scalar("train/cls_loss_metric", cls_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
         tf.summary.scalar("train/reg_loss_metric", reg_loss_metric.result(), step=index)  # 将当前损失函数的值写入记录器
-        tf.summary.image("train/10 train data examples", plot_to_image(images, labels,output), max_outputs=10,
+        tf.summary.image("train/10 train data examples", plot_to_image(images, labels), max_outputs=10,
                          step=index)
         tf.summary.image("anchor_boxes", display_image(images, anchor_boxes), max_outputs=1, step=index)
     print(

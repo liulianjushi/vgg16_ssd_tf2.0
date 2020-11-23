@@ -97,7 +97,7 @@ def plot_ious_matrix(ious):
     """
     imgs = []
     for iou in ious:
-        iou= iou.numpy()
+        iou = iou.numpy()
         figure = plt.figure()
         plt.imshow(iou, interpolation='nearest', cmap=plt.cm.Blues)
         plt.title("Confusion matrix")
@@ -146,6 +146,7 @@ def plot_to_image(images, labels, pre_labels=None):
             detection_classes = pre_labels["detection_classes"][index]
             detection_scores = pre_labels["detection_scores"][index]
             detection_num = pre_labels["detection_num"][index]
+            print(f"detection_classes:{detection_classes.numpy().tolist()}")
             if detection_num != 0:
                 for i, box in enumerate(predict_boxes):
                     box = tf.cast(box * [width, height, width, height] + [width, 0, width, 0], tf.int32)
